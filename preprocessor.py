@@ -31,30 +31,34 @@ def idct_image(im):
             idct[i:(i+8),j:(j+8)] = idct_2d(im[i:(i+8),j:(j+8)])
     return idct
 
+def dct_set(data, stride):
+    for i in range(len(data)):
+        data[i] = dct_image(data[i], stride=stride)
+    data = data / np.max(data)
+    return data
+
 def clip(data, percentage):
     # Get value to clip by
     val = np.sort(data)[int(len(data)*(1-percentage/100))]
     return np.where(data > val)
 
-def preprocess(percentage):
+def preprocess(percentage, stride=8):
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    for i in range(len(x_train)):
-        #x_train[i] = dct_2d(x_train[i])
-        x_train[i] = dct_image(x_train[i])
-    #plt.imshow(x_train[0])
-    #plt.show()
-    x_train = x_train / np.max(x_train)
-    return (x_train, y_train), (x_test, y_test)
-    x_train = x_train.reshape(
-        x_train.shape[0],x_train.shape[1]*x_train.shape[2])
-    x_test = x_test.reshape((x_test.shape[0], x_test.shape[1]*x_test.shape[2]))
-    return (x_train, y_train), (x_test, y_test)
+    x_train = dct_set(x_train, stride)
+    x_test = dct_set(x_test, stride)
+
+    x_train = x_train.reshape(x_train.shape[0],
+                              x_train.shape[1]*x_train.shape[2])
+
+    x_test = x_test.reshape(x_test.shape[0],
+                            x_test.shape[1]*x_test.shape[2])
+
     variances = np.var(x_train, axis=0)
     stdevs = np.sqrt(variances)
-    #plt.bar(range(784), stdevs.transpose())
-    #plt.show()
     idx = clip(stdevs, percentage)
+
     x_train_clipped = np.squeeze(x_train[:,idx])
     x_test_clipped = np.squeeze(x_test[:,idx])
+
     return (x_train_clipped, y_train), (x_test_clipped, y_test)
 
