@@ -42,6 +42,9 @@ def clip(data, percentage):
     val = np.sort(data)[int(len(data)*(1-percentage/100))]
     return np.where(data > val)
 
+def conv_clip(data, threshhold):
+    return np.where(data < threshhold)
+
 def preprocess(percentage, stride=8):
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train = dct_set(x_train, stride)
@@ -62,3 +65,21 @@ def preprocess(percentage, stride=8):
 
     return (x_train_clipped, y_train), (x_test_clipped, y_test)
 
+def conv_preprocess(threshhold, stride):
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    x_train = dct_set(x_train, stride)
+    x_test = dct_set(x_test, stride)
+
+    variances = np.var(x_train, axis =0)
+    stdevs = np.sqrt(variances)
+    idx = conv_clip(stdevs, threshhold)
+
+    for i in range(len(x_train)):
+        x_train[i][idx] = 0
+
+    for i in range(len(x_test)):
+        x_test[i][idx] = 0
+
+    print(np.size(idx)/(2*784))
+    
+    return (x_train, y_train), (x_test, y_test)
