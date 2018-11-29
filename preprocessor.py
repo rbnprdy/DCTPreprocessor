@@ -1,7 +1,9 @@
+from __future__ import print_function
+
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+from keras.datasets import mnist
 from scipy import fftpack
+import matplotlib.pyplot as plt
 
 def dct_2d(img):
     return fftpack.dct(
@@ -14,11 +16,12 @@ def idct_2d(img):
 def rgb2gray(rgb):
     return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
 
-def dct_image(im):
+def dct_image(im, stride=8):
     dct = np.zeros(im.shape)
-    for i in range(0,im.shape[0],8):
-        for j in range(0, im.shape[1],8):
-            dct[i:(i+8),j:(j+8)] = dct_2d(im[i:(i+8),j:(j+8)])
+    for i in range(0,im.shape[0],stride):
+        for j in range(0, im.shape[1],stride):
+            dct[i:(i+stride),j:(j+stride)] = \
+                dct_2d(im[i:(i+stride),j:(j+stride)])
     return dct
 
 def idct_image(im):
@@ -28,28 +31,30 @@ def idct_image(im):
             idct[i:(i+8),j:(j+8)] = idct_2d(im[i:(i+8),j:(j+8)])
     return idct
 
-im = rgb2gray(mpimg.imread('test.jpg'))
-dct = dct_image(im)
+def clip(data, percentage):
+    # Get value to clip by
+    val = np.sort(data)[int(len(data)*(1-percentage/100))]
+    return np.where(data > val)
 
-f, axarr = plt.subplots(2,2)
-f.suptitle('DCT Demonstration')
-axarr[0, 0].imshow(im, cmap='gray')
-axarr[0, 0].set_title('Original Image')
+def preprocess(percentage):
+    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+    for i in range(len(x_train)):
+        #x_train[i] = dct_2d(x_train[i])
+        x_train[i] = dct_image(x_train[i])
+    #plt.imshow(x_train[0])
+    #plt.show()
+    x_train = x_train / np.max(x_train)
+    return (x_train, y_train), (x_test, y_test)
+    x_train = x_train.reshape(
+        x_train.shape[0],x_train.shape[1]*x_train.shape[2])
+    x_test = x_test.reshape((x_test.shape[0], x_test.shape[1]*x_test.shape[2]))
+    return (x_train, y_train), (x_test, y_test)
+    variances = np.var(x_train, axis=0)
+    stdevs = np.sqrt(variances)
+    #plt.bar(range(784), stdevs.transpose())
+    #plt.show()
+    idx = clip(stdevs, percentage)
+    x_train_clipped = np.squeeze(x_train[:,idx])
+    x_test_clipped = np.squeeze(x_test[:,idx])
+    return (x_train_clipped, y_train), (x_test_clipped, y_test)
 
-axarr[1, 0].imshow(dct,cmap='gray',vmax=np.max(dct)*0.01,vmin = 0)
-axarr[1, 0].set_title('DCT')
-
-# Threshold DCT
-thresh = 0.012
-dct_thresh = dct * (abs(dct) > (thresh*np.max(dct)))
-
-percent_kept = np.sum(dct_thresh != 0.0) / (im.shape[0]*im.shape[1]*1.0)
-
-axarr[1, 1].imshow(dct_thresh, cmap='gray', vmax=np.max(dct)*0.01,vmin = 0)
-axarr[1, 1].set_title('DCT with %f%% of coefficients removed' % \
-                 ((1-percent_kept)*100.0))
-
-axarr[0, 1].imshow(idct_image(dct_thresh), cmap='gray')
-axarr[0, 1].set_title('Compressed Image')
-
-plt.show()
