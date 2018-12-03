@@ -1,54 +1,40 @@
+# preprocessor.py
+#
+# Preprocessing functions for reducing data size using the Discrete Cosine
+# Transform.
+#
+# Created by Ruben Purdy and Kray Althaus for ECE429 at the University of
+# Arizona
+
 from __future__ import print_function
 
 import numpy as np
-from keras.datasets import mnist
-from scipy import fftpack
-import matplotlib.pyplot as plt
+from keras import backend as K
+from dct import dct_set_gray, dct_set_color
 
-def dct_2d(img):
-    return fftpack.dct(
-        fftpack.dct(img, axis=0, norm='ortho'), axis=1, norm='ortho')
 
-def idct_2d(img):
-    return fftpack.idct(
-        fftpack.idct(img, axis=0, norm='ortho'), axis=1, norm='ortho')
-
-def rgb2gray(rgb):
-    return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
-
-def dct_image(im, stride=8):
-    dct = np.zeros(im.shape)
-    for i in range(0,im.shape[0],stride):
-        for j in range(0, im.shape[1],stride):
-            dct[i:(i+stride),j:(j+stride)] = \
-                dct_2d(im[i:(i+stride),j:(j+stride)])
-    return dct
-
-def idct_image(im):
-    idct = np.zeros(im.shape)
-    for i in range(0,im.shape[0],8):
-        for j in range(0, im.shape[1],8):
-            idct[i:(i+8),j:(j+8)] = idct_2d(im[i:(i+8),j:(j+8)])
-    return idct
-
-def dct_set(data, stride):
-    for i in range(len(data)):
-        data[i] = dct_image(data[i], stride=stride)
-    data = data / np.max(data)
-    return data
-
-def clip(data, percentage):
-    # Get value to clip by
+def get_clip_index_fc(data, percentage):
+    """Returns array that can be used to remove elements from `data` so that
+    only `percentage` percent of the points remain"""
     val = np.sort(data)[int(len(data)*(1-percentage/100))]
     return np.where(data > val)
 
-def conv_clip(data, threshhold):
-    return np.where(data < threshhold)
 
-def preprocess(percentage, stride=8):
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    x_train = dct_set(x_train, stride)
-    x_test = dct_set(x_test, stride)
+def get_clip_index_conv(data, percentage):
+    """Returns an array that can be used to set values to zero so that only
+    `percentage` percent of `data` is non-zero."""
+    original_shape = data.shape
+    data = data.reshape(np.multiply.reduce(data.shape))
+    val = np.sort(data)[int(len(data)*(1-percentage/100))]
+    data = data.reshape(original_shape)
+    return np.where(data > val)
+
+
+def preprocess_fc(x_train, x_test, percentage, stride=8, verbose=0):
+    """Removes DCT components from input image data so that only `percentage`
+    percent of the DCT values remain. Returns data as DCT components."""
+    x_train = dct_set_gray(x_train, stride, verbose=verbose)
+    x_test = dct_set_gray(x_test, stride, verbose=verbose)
 
     x_train = x_train.reshape(x_train.shape[0],
                               x_train.shape[1]*x_train.shape[2])
@@ -58,28 +44,44 @@ def preprocess(percentage, stride=8):
 
     variances = np.var(x_train, axis=0)
     stdevs = np.sqrt(variances)
-    idx = clip(stdevs, percentage)
+    idx = get_clip_index_fc(stdevs, percentage)
 
-    x_train_clipped = np.squeeze(x_train[:,idx])
-    x_test_clipped = np.squeeze(x_test[:,idx])
+    x_train = np.squeeze(x_train[:, idx])
+    x_test = np.squeeze(x_test[:, idx])
 
-    return (x_train_clipped, y_train), (x_test_clipped, y_test)
+    return x_train, x_test
 
-def conv_preprocess(threshhold, stride):
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    x_train = dct_set(x_train, stride)
-    x_test = dct_set(x_test, stride)
 
-    variances = np.var(x_train, axis =0)
-    stdevs = np.sqrt(variances)
-    idx = conv_clip(stdevs, threshhold)
+def preprocess_conv(x_train, x_test, percentage, stride, grayscale=True,
+                    verbose=0):
+    """Zeros DCT components from input image data so that only `percentage'
+    percent of DCT components are non-zero. Returns data as DCT compontents."""
+    if grayscale:
+        x_train = dct_set_gray(x_train, stride, verbose=verbose)
+        x_test = dct_set_gray(x_test, stride, verbose=verbose)
 
-    for i in range(len(x_train)):
-        x_train[i][idx] = 0
+        variances = np.var(x_train, axis=0)
+        stdevs = np.sqrt(variances)
+        idx = get_clip_index_conv(stdevs, percentage)
 
-    for i in range(len(x_test)):
-        x_test[i][idx] = 0
+        x_train[:][idx] = 0
+        x_test[:][idx] = 0
+    else:
+        x_train = dct_set_color(x_train, stride)
+        x_test = dct_set_color(x_test, stride)
 
-    print(np.size(idx)/(2*784))
-    
-    return (x_train, y_train), (x_test, y_test)
+        for i in range(3):
+            if K.image_data_format() == 'channels_first':
+                variances = np.var(x_train[:, :, :, i], axis=0)
+                stdevs = np.sqrt(variances)
+                idx = get_clip_index_conv(stdevs, percentage)
+                x_train[:][idx, i] = 0
+                x_test[:][idx, i] = 0
+            else:
+                variances = np.var(x_train[:, i, :, :], axis=0)
+                stdevs = np.sqrt(variances)
+                idx = get_clip_index_conv(stdevs, percentage)
+                x_train[:][i, idx] = 0
+                x_test[:][i, idx] = 0
+
+    return x_train, x_test
