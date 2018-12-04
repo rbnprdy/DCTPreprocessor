@@ -7,6 +7,7 @@
 
 from __future__ import print_function
 
+import numpy as np
 from keras.datasets import mnist
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping
@@ -33,7 +34,7 @@ def train_session_fc(percentage, batch_size=128, epochs=100, num_classes=10,
 
     early_stop = EarlyStopping(patience=20)
 
-    print('Input shape: {} ({}% of parameters).'.format(
+    print('Input shape: {} (keeping {}% of DCT components.)'.format(
         x_train.shape, percentage))
 
     model = FullyConnected(x_train.shape[1], num_classes)
@@ -67,7 +68,7 @@ def train_session_conv(percentage, batch_size=128, epochs=100, num_classes=10,
 
     early_stop = EarlyStopping(patience=20)
 
-    print('Input shape: {} (percentage: {}).'.format(
+    print('Input shape: {} (keeping {}% of DCT components.)'.format(
         x_train.shape, percentage))
 
     if K.image_data_format() == 'channels_first':

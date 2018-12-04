@@ -43,7 +43,7 @@ def idct_image(im, stride=4):
 
 def dct_set_gray(data, stride, verbose=0):
     """Performs a dct on a set of grayscale images with blocks of size
-    `stide`."""
+    `stride`."""
     dct = np.zeros(data.shape)
     for i in range(len(data)):
         if verbose:

@@ -16,8 +16,8 @@ def main():
                         choices=['fc', 'conv'])
     parser.add_argument('dataset', help='The dataset to use.',
                         choices=['mnist'])
-    parser.add_argument('parameter', help='The percentage of dct components to'
-                        + ' keep.', type=float)
+    parser.add_argument('percentage', help='The percentage of dct components'
+                        + ' to keep.', type=float)
     parser.add_argument('-s', '--stride', help='The stride to use when'
                         + ' perfoming the blockwise dct.', type=int,
                         default=4)
@@ -30,11 +30,11 @@ def main():
     args = parser.parse_args()
 
     if args.model == 'fc':
-        train_session_fc(args.parameter, batch_size=args.batch_size,
+        train_session_fc(args.percentage, batch_size=args.batch_size,
                          epochs=args.epochs, stride=args.stride,
                          verbose=args.verbosity)
     else:
-        train_session_conv(args.parameter, batch_size=args.batch_size,
+        train_session_conv(args.percentage, batch_size=args.batch_size,
                            epochs=args.epochs, stride=args.stride,
                            verbose=args.verbosity)
 
