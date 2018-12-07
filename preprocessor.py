@@ -72,9 +72,8 @@ def preprocess_conv(x_train, x_test, percentage, stride, grayscale=True,
         for image in x_test:
             image[idx] = 0
     else:
-        x_train = dct_set_color(x_train, stride)
-        x_test = dct_set_color(x_test, stride)
-
+        x_train = dct_set_color(x_train, stride, verbose=verbose)
+        x_test = dct_set_color(x_test, stride, verbose=verbose)
         if K.image_data_format() == 'channels_first':
             for i in range(3):
                 variances = np.var(x_train[:, i, :, :], axis=0)

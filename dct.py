@@ -41,6 +41,19 @@ def idct_image(im, stride=4):
     return idct
 
 
+def idct_image_color(im, stride=4):
+    """Perfomrs a 2D Inverse DCT on an image in blocks of size `stride`."""
+    idct = np.zeros(im.shape)
+    if K.image_data_format() == 'channels_first':
+        for channel_num in range(3):
+            idct[channel_num] = idct_image(im[channel_num], stirde=stride)
+    elif K.image_data_format() == 'channels_last':
+        for channel_num in range(3):
+            idct[:,:,channel_num] = idct_image(im[:,:,channel_num],
+                                               stride=stride)
+    return idct
+
+
 def dct_set_gray(data, stride, verbose=0):
     """Performs a dct on a set of grayscale images with blocks of size
     `stride`."""
@@ -58,21 +71,22 @@ def dct_set_gray(data, stride, verbose=0):
 def dct_set_color(data, stride, verbose=0):
     """Performs ad dct on a set of color images with blocks of size `stride`.
     """
+    dct = np.zeros(data.shape)
     if K.image_data_format() == 'channels_first':
         for i in range(len(data)):
             if verbose:
                 print('\t{}/{} images'.format(i + 1, len(data)), end='\r',
                       flush=True)
             for j in range(3):
-                data[i, j, :, :] = dct_image(data[i, j, :, :], stride=stride)
+                dct[i, j, :, :] = dct_image(data[i, j, :, :], stride=stride)
     else:
         for i in range(len(data)):
             if verbose:
                 print('\t{}/{} images'.format(i + 1, len(data)), end='\r',
                       flush=True)
             for j in range(3):
-                data[i, :, :, j] = dct_image(data[i, :, :, j], stride=stride)
+                dct[i, :, :, j] = dct_image(data[i, :, :, j], stride=stride)
 
     if verbose:
         print()
-    return data
+    return dct

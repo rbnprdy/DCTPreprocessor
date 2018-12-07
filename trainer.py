@@ -8,16 +8,17 @@
 from __future__ import print_function
 
 import numpy as np
-from keras.datasets import mnist
+from keras.datasets import mnist, cifar10
 from keras.utils import to_categorical
 from keras.callbacks import EarlyStopping
 from keras import backend as K
 from preprocessor import preprocess_fc, preprocess_conv
-from models import FullyConnected, Convolution
+from models import FullyConnected, Convolution, Convolution_CIFAR
 
 
-def train_session_fc(percentage, batch_size=128, epochs=100, num_classes=10,
-                     stride=4, verbose=0):
+def train_session_mnist_fc(percentage, batch_size=128, epochs=100, stride=4,
+                           verbose=0):
+    num_classes = 10
 
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = preprocess_fc(x_train, x_test, percentage, stride=stride,
@@ -26,8 +27,8 @@ def train_session_fc(percentage, batch_size=128, epochs=100, num_classes=10,
     x_train = x_train.astype('float32')
     x_test = x_test.astype('float32')
 
-    x_train = x_train / np.max(x_train)
-    x_test = x_test / np.max(x_test)
+    x_train = x_train / np.max(np.abs(x_train))
+    x_test = x_test / np.max(np.abs(x_test))
 
     y_train = to_categorical(y_train, num_classes)
     y_test = to_categorical(y_test, num_classes)
@@ -50,18 +51,21 @@ def train_session_fc(percentage, batch_size=128, epochs=100, num_classes=10,
     print('\tTest accuracy:', score[1])
 
 
-def train_session_conv(percentage, batch_size=128, epochs=100, num_classes=10,
-                       stride=4, img_rows=28, img_cols=28, verbose=0):
+def train_session_mnist_conv(percentage, batch_size=128, epochs=100,
+                             stride=4, verbose=0):
+    img_rows = 28
+    img_cols = 28
+    num_classes = 10
 
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = preprocess_conv(x_train, x_test, percentage,
-                                      stride=stride, verbose=verbose)
+                                      stride, verbose=verbose)
 
     x_train = x_train.astype('float32')
     x_test = x_test.astype('float32')
 
-    x_train = x_train / np.max(x_train)
-    x_test = x_test / np.max(x_test)
+    x_train = x_train / np.max(np.abs(x_train))
+    x_test = x_test / np.max(np.abs(x_test))
 
     y_train = to_categorical(y_train, num_classes)
     y_test = to_categorical(y_test, num_classes)
@@ -88,6 +92,42 @@ def train_session_conv(percentage, batch_size=128, epochs=100, num_classes=10,
               verbose=verbose,
               callbacks=[early_stop],
               validation_split=0.2)
+
+    score = model.evaluate(x_test, y_test, verbose=0)
+    print('\tTest accuracy:', score[1])
+
+
+def train_session_cifar10_conv(percentage, batch_size=128, epochs=100,
+                               stride=4, verbose=0):
+
+    num_classes = 10
+
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    x_train, x_test = preprocess_conv(x_train, x_test, percentage,
+                                      stride, grayscale=False, verbose=verbose)
+
+    x_train = x_train.astype('float32')
+    x_test = x_test.astype('float32')
+    x_train /= np.max(np.abs(x_train))
+    x_test /= np.max(np.abs(x_test))
+
+    y_train = to_categorical(y_train, num_classes)
+    y_test = to_categorical(y_test, num_classes)
+
+    early_stop = EarlyStopping(patience=20)
+
+    model = Convolution_CIFAR(x_train.shape[1:], num_classes)
+
+    print('Input shape: {} (keeping {}% of DCT components.)'.format(
+        x_train.shape, percentage))
+
+    model.fit(x_train, y_train,
+              batch_size=batch_size,
+              epochs=epochs,
+              verbose=verbose,
+              validation_split=0.2,
+              callbacks=[early_stop],
+              shuffle=True)
 
     score = model.evaluate(x_test, y_test, verbose=0)
     print('\tTest accuracy:', score[1])
